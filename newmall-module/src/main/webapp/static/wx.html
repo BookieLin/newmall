@@ -1,0 +1,192 @@
+<html>
+<head>
+    <title>微信</title>
+    <meta charset="utf-8"/>
+    <style>
+        button{
+            display:block;
+            width:350px;
+            height:100px;
+        }
+        img{
+            display:block;
+        }
+    </style>
+</head>
+<body>
+
+<input id="myurl" type="text" name="url" value="">
+<img id="userImage" src="images/qrcode.png"/>
+<button id="scanQRCode">微信扫一扫</button>
+<button id="wxChooseImage">选择图片</button>
+<button id="talk_btn">开始录音</button>
+
+
+<script src="http://res.wx.qq.com/open/js/jweixin-1.2.0.js"></script>
+<!-- jQuery 3 -->
+<script src="bower_components/jquery/dist/jquery.min.js"></script>
+<!-- jQuery UI 1.11.4 -->
+<script src="bower_components/jquery-ui/jquery-ui.min.js"></script>
+<!-- Bootstrap 3.3.7 -->
+<script src="bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+<script>
+    var signature="";
+    var jsapi_ticket="";
+    var url="";
+    var nonceStr="";
+    var timestamp=0;
+    $(function(){
+        $.ajax({
+
+            type: 'post',
+            url: '../weixin',
+            data: 'url=' + encodeURIComponent(location.href.split('#')[0]),
+            success: function (message) {
+                var entrySet = message.split(",");
+                signature = entrySet[0].split("=")[1];
+                jsapi_ticket = entrySet[1].split("=")[1];
+                url = entrySet[2].split("=")[1];
+                nonceStr = entrySet[3].split("=")[1];
+                timestamp = parseInt(entrySet[4].split("=")[1]);
+                wx.config({
+                    debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+                    appId: 'wx318f0369778abec1', // 必填，公众号的唯一标识
+                    timestamp: timestamp, // 必填，生成签名的时间戳
+                    nonceStr: nonceStr, // 必填，生成签名的随机串
+                    signature: signature,// 必填，签名，见附录1
+                    jsApiList: [
+                        'scanQRCode',
+                        'chooseImage',
+                        'onVoicePlayEnd',
+                        'startRecord',
+                        'stopRecord',
+                        'uploadVoice'
+                    ] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+
+                });
+
+                wx.ready(function () {
+
+                    // config信息验证后会执行ready方法，所有接口调用都必须在config接口获得结果之后，
+//        config是一个客户端的异步操作，所以如果需要在页面加载时就调用相关接口，则须把相关接口放在ready函数中调用来确保正确执行。对于用户触发时才调用的接口，则可以直接调用，不需要放在ready函数中。
+
+                    //注册微信播放录音结束事件【一定要放在wx.ready函数内】
+                    wx.onVoicePlayEnd({
+                        success: function (res) {
+                            stopWave();
+                        }
+                    });
+
+                });
+                wx.error(function (res) {
+                    // config信息验证失败会执行error函数，如签名过期导致验证失败，具体错误信息可以打开config的debug模式查看，也可以在返回的res参数中查看，对于SPA可以在这里更新签名。
+                    alert("出错了：" + res.errMsg);
+
+                });
+            }
+        });
+    })
+    $('#scanQRCode').click(function () {
+
+        $.ajax({
+            type:'post',
+            url:'../weixin',
+            data:'url='+encodeURIComponent(location.href.split('#')[0]),
+            success:function () {
+                wx.scanQRCode({
+                    needResult: 1, // 默认为0，扫描结果由微信处理，1则直接返回扫描结果，
+                    scanType: ["qrCode", "barCode"], // 可以指定扫二维码还是一维码，默认二者都有
+                    success: function (res) {
+                        var result = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
+                        document.getElementById("wm_id").value = result;//将扫描的结果赋予到jsp对应值上
+                        alert("扫描成功::扫描码=" + result);
+                    },
+                    error:function(res){
+                        alert("扫描失败："+res.resultStr);
+                    }
+                });
+            }
+        })
+
+    });//end_document_scanQRCode
+
+    $("#wxChooseImage").click(function () {
+        wx.chooseImage({
+            count: 1, // 默认9
+            sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+            sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+            success: function (res) {
+                var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
+                $("#userImage").attr("src",localIds);
+            }
+        });
+    })
+
+    $('#talk_btn').on('touchstart', function(event){
+        event.preventDefault();
+        START = new Date().getTime();
+
+        recordTimer = setTimeout(function(){
+            wx.startRecord({
+                success: function(){
+                    localStorage.rainAllowRecord = 'true';
+                },
+                cancel: function () {
+                    alert('用户拒绝授权录音');
+                }
+            });
+        },300);
+    });
+    //松手结束录音
+    $('#talk_btn').on('touchend', function(event){
+        event.preventDefault();
+        END = new Date().getTime();
+
+        if((END - START) < 300){
+            END = 0;
+            START = 0;
+            //小于300ms，不录音
+            clearTimeout(recordTimer);
+        }else{
+            wx.stopRecord({
+                success: function (res) {
+                    voice.localId = res.localId;
+                    uploadVoice();
+                },
+                fail: function (res) {
+                    alert(JSON.stringify(res));
+                }
+            });
+        }
+    });
+
+    //上传录音
+    function uploadVoice(){
+        //调用微信的上传录音接口把本地录音先上传到微信的服务器
+        //不过，微信只保留3天，而我们需要长期保存，我们需要把资源从微信服务器下载到自己的服务器
+        wx.uploadVoice({
+            localId: voice.localId, // 需要上传的音频的本地ID，由stopRecord接口获得
+            isShowProgressTips: 1, // 默认为1，显示进度提示
+            success: function (res) {
+                //把录音在微信服务器上的id（res.serverId）发送到自己的服务器供下载。
+                $.ajax({
+                    url: '../wetalk',
+                    type: 'post',
+                    data: JSON.stringify(res),
+                    dataType: "json",
+                    success: function (data) {
+                        alert('文件已经保存到七牛的服务器');//这回，我使用七牛存储
+                    },
+                    error: function (xhr, errorType, error) {
+                        console.log(error);
+                        alert("上传失败！");
+                    }
+                });
+            }
+        });
+    }
+
+
+</script>
+</body>
+</html>

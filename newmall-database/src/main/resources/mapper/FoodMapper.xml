@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.vincent.newshop.database.dao.FoodMapper">
+  <resultMap id="BaseResultMap" type="com.vincent.newshop.database.entity.Food">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="manufacturer" jdbcType="VARCHAR" property="manufacturer" />
+    <result column="place_origin" jdbcType="VARCHAR" property="placeOrigin" />
+    <result column="repo" jdbcType="INTEGER" property="repo" />
+    <result column="price" jdbcType="DECIMAL" property="price" />
+  </resultMap>
+</mapper>

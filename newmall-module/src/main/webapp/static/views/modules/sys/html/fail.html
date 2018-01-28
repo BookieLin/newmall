@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Insert title here</title>
+</head>
+<body>
+修改失败！！！<a href="/mall/index.jsp">5秒后将自动跳转，点击此处立即跳转</a>
+<script type="text/javascript">
+    var m;
+    function gocc(){
+        window.location.href="/views/modules/sys/jsp/index.jsp";
+    }
+    window.onload=function(){
+        m=setInterval("gocc()", 5000);
+    }
+
+</script>
+</body>
+</html>
